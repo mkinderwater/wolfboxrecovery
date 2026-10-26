@@ -16,7 +16,7 @@ The recorder also stores small JPEG images, which can help identify missing foot
 
 ## Using the Windows application
 
-![WolfBox Recovery v2.16 Windows interface]([assets/wolfbox-gui.png](https://github.com/mkinderwater/wolfboxrecovery/blob/main/program.png))
+![WolfBox Recovery v2.16 Windows interface](https://raw.githubusercontent.com/mkinderwater/wolfboxrecovery/main/program.png)
 
 1. Download the compiled Windows release and launch `WolfBoxRecovery.exe`.
 2. Choose a **Source image** (a sector-by-sector image of the memory card).
