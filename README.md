@@ -1,10 +1,10 @@
 # WolfBox Recovery
 
-**Recover WolfBox dashcam video from raw disk images, even without a working filesystem.**
+**Free, open-source WolfBox dashcam video recovery for deleted, damaged or fragmented recordings, even without a working filesystem.**
 
 I wrote WolfBox Recovery after working on a memory card where conventional file recovery couldn't reconstruct the original recordings. The video data was still present, but some of the filesystem and recording metadata needed to put it back together was missing.
 
-The program examines the recorder's physical media structures, identifies surviving HEVC/H.265 samples, reconstructs their logical order and recovers playable MP4 video.
+The program examines the recorder's physical media structures, identifies surviving HEVC/H.265 samples, reconstructs their logical order and recovers playable MP4 video from raw SD card images, including cases with missing FAT metadata or a damaged recording index.
 
 **[Download WolfBox Recovery for Windows](https://github.com/mkinderwater/wolfboxrecovery/releases)** | [View Source Code](https://github.com/mkinderwater/wolfboxrecovery)
 
@@ -35,7 +35,17 @@ The recording list displays available dates, physical recording IDs, unit counts
 
 The source image is opened read-only.
 
-## How the recovery works
+## When it may help
+
+- Deleted WolfBox dashcam recordings whose video data remains on the card.
+- Formatted or corrupted SD cards with recoverable physical data.
+- Damaged FAT/exFAT filesystems or missing allocation chains.
+- Fragmented HEVC/H.265 recordings that ordinary file carving cannot reconstruct.
+- MP4 recordings with missing `moov` metadata or unassociated video fragments.
+
+These are possible recovery scenarios, not guarantees. Overwritten video cannot be restored.
+
+## How WolfBox dashcam video recovery works
 
 ### Physical discovery
 
@@ -57,7 +67,7 @@ These structures help establish recording ownership, logical sample order and pl
 
 Ambiguous matches remain unresolved rather than being forced into an incorrect recording.
 
-### Recovery without the original index
+### Recovering HEVC video without a `moov` atom
 
 Some video samples survive even when their original `moov` cannot be recovered.
 
