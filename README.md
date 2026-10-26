@@ -2,87 +2,143 @@
 
 **Recover WolfBox dashcam video from raw disk images, even without a working filesystem.**
 
-I wrote this tool after working on a WolfBox card where conventional file recovery wasn't enough to reconstruct the recordings. It reads the physical media structures and maps surviving HEVC/H.265 samples back into usable video. The objective is **playable MP4 files**, not just carved fragments.
+I wrote WolfBox Recovery after working on a memory card where conventional file recovery couldn't reconstruct the original recordings. The video data was still present, but some of the filesystem and recording metadata needed to put it back together was missing.
 
-**[Download the ready-to-use Windows executable from Releases](../../releases)** | [View source](../../)
+The program examines the recorder's physical media structures, identifies surviving HEVC/H.265 samples, reconstructs their logical order and recovers playable MP4 video.
 
-A compiled version is included with the GitHub release, ready to use for recovery. Source code is also available.
+**[Download WolfBox Recovery for Windows](https://github.com/mkinderwater/wolfboxrecovery/releases)** | [View Source Code](https://github.com/mkinderwater/wolfboxrecovery)
+
+The Windows release includes a **digitally signed executable**, ready to use without compiling. The complete source code is available under the MIT license.
 
 ## Supported recording layout
 
-The WolfBox recorder examined for this project stores **three simultaneous HEVC video streams**. **Only one carries AAC audio**; the other two are video-only. The tool checks each track independently, so missing audio cannot disqualify valid video.
+The WolfBox recorder examined for this project stores **three simultaneous HEVC video streams**. Only one carries AAC audio; the other two are video-only.
 
-The recorder also stores small JPEG images, which can help identify missing footage. Other WolfBox models and firmware may use different layouts.
+The program evaluates video and audio independently, so missing or damaged audio does not prevent recovery of otherwise valid video.
 
-## Using the Windows application
+The recorder also stores small JPEG images that may help identify missing footage. Other WolfBox models and firmware versions may use different recording structures.
+
+## Using WolfBox Recovery
 
 ![WolfBox Recovery v2.16 Windows interface](https://raw.githubusercontent.com/mkinderwater/wolfboxrecovery/main/program.png)
 
-1. Download the compiled Windows release and launch `WolfBoxRecovery.exe`.
-2. Choose a **Source image** (a sector-by-sector image of the memory card).
-3. Choose an **Output folder** on a separate drive.
-4. Click **Analyze Image**. Review the recording date/time, physical recording ID, unit count and recovery status in the recording list.
-5. Select the recordings you want and click **Recover Selected** to save supported video as MP4.
+1. Download the signed Windows executable from [Releases](https://github.com/mkinderwater/wolfboxrecovery/releases).
+2. Launch `WolfBoxRecovery.exe`.
+3. Select a **Source image**, preferably a sector-by-sector image of the original memory card.
+4. Select an **Output folder** for recovered files.
+5. Click **Analyze Image** to locate recordings and reconstruct their physical sample mappings.
+6. Select the recordings you want and click **Recover Selected** to export playable MP4 files.
 
-**Stop** cancels the current operation. **Select All** and **Clear Selection** help with batch recovery. The **Activity log** shows scan and recovery progress.
+The recording list displays available dates, physical recording IDs, unit counts and recovery status. **Select All**, **Clear Selection** and **Stop** are available for managing operations.
 
-**Recover Orphan MP4** launches the companion workflow for an already prepared orphan candidate. It does not automatically recover every unknown fragment directly from the GUI.
+**Recover Orphan MP4** launches the companion reconstruction workflow for previously mapped orphaned footage. It does not automatically reconstruct every unidentified fragment.
+
+The source image is opened read-only.
 
 ## How the recovery works
 
-The source image is opened **read-only**. The scanner identifies WolfBox `tbgp` structures, media wrappers and any surviving MP4 `moov` atoms, recording the physical location and size of video samples.
+### Physical discovery
 
-**With a surviving recording index**, the tool compares physical samples against `moov` tables such as `stsz`, `stsc`, `stco`/`co64` and `stts`, along with the `hvcC` codec configuration. It rebuilds logical sample order without depending on FAT/exFAT directory entries or file allocation chains.
+The scanner searches the raw image for WolfBox `tbgp` structures, media wrappers and surviving MP4 `moov` atoms.
 
-**Without a usable `moov`**, orphan analysis checks HEVC NAL structure, embedded VPS/SPS/PPS parameters, IDR/CRA pictures and wrapper timestamps. These help identify compatible pieces; uncertain joins are not forced. Supported streams can be decoded and remuxed to playable MP4 without re-encoding the video, using FFmpeg.
+It records the physical offsets and lengths of individual video samples rather than depending on FAT/exFAT directory entries or allocation chains.
 
-The program also carves contiguous JPEGs and logs their physical offsets. A thumbnail near video data is a useful lead, not proof that they belong together.
+### Recording reconstruction
 
-## Output and evidence
+When a surviving `moov` is available, the program compares physical samples against the recording's original sample tables:
 
-In addition to recovered `.mp4` and `.jpg` files, the tool can produce CSV reports:
+- `stsz`: Sample sizes
+- `stsc`: Sample-to-chunk mapping
+- `stco` / `co64`: Chunk offsets
+- `stts`: Sample timing
+- `hvcC`: HEVC codec configuration
 
-| Output | Contents |
-| --- | --- |
-| `recording_inventory.csv`, `recording_summary.csv` | Identified recording candidates and recovery coverage |
-| `physical_ownership.csv`, `logical_placements.csv` | Physical-to-logical sample mapping |
-| `association_decisions.csv`, `ownership_candidates.csv` | Accepted and unresolved recording associations |
-| `physical_video_samples.csv`, `unmapped_priorities.csv` | HEVC samples still needing investigation |
-| `orphan_units.csv`, `orphan_join_candidates.csv`, `join_samples_*.csv` | Orphan samples, timing and proposed joins |
-| `jpeg_evidence.csv`, `JPEG_Recovered/` | Recovered JPEGs and their physical locations |
+These structures help establish recording ownership, logical sample order and playback information, even when the original filesystem no longer identifies the recording.
 
-Reports depend on the selected workflow. Advanced orphan reconstruction uses saved sample maps to avoid rescanning the whole card and requires FFmpeg/FFprobe for decoder checks and playable MP4 output.
+Ambiguous matches remain unresolved rather than being forced into an incorrect recording.
+
+### Recovery without the original index
+
+Some video samples survive even when their original `moov` cannot be recovered.
+
+The orphan-recovery workflow examines HEVC NAL structures, embedded VPS/SPS/PPS codec parameters, IDR/CRA pictures and recording timestamps to determine whether physical fragments belong together.
+
+Where sufficient evidence supports reconstruction, the original HEVC data can be assembled, decoded for validation and remuxed into a **playable MP4 without re-encoding**.
+
+Missing samples are not manufactured, and matching timestamps alone are not considered proof of continuity.
+
+### JPEG recovery
+
+The scanner also recovers contiguous JPEG images and records their physical locations. These may include camera thumbnails associated with recordings that are no longer accessible through the filesystem.
+
+## Output and recovery evidence
+
+Alongside recovered MP4 and JPEG files, WolfBox Recovery generates CSV reports for examining physical sample mapping and unresolved content.
+
+| Output | Information |
+|---|---|
+| `recording_inventory.csv` | Identified recording candidates |
+| `recording_summary.csv` | Recording coverage and recovery status |
+| `physical_ownership.csv` | Physical recording associations |
+| `logical_placements.csv` | Logical sample positions |
+| `association_decisions.csv` | Accepted and unresolved ownership decisions |
+| `physical_video_samples.csv` | Physical HEVC sample offsets |
+| `unmapped_priorities.csv` | Video samples requiring further investigation |
+| `orphan_units.csv` | Unassociated physical video units |
+| `orphan_join_candidates.csv` | Possible relationships between orphaned fragments |
+| `jpeg_evidence.csv` | Recovered JPEG locations and dimensions |
+
+Available reports depend on the recovery operation.
+
+Advanced orphan reconstruction uses saved physical sample mappings to avoid repeating a complete image scan. FFmpeg and FFprobe are used for decoding validation and playable MP4 output.
+
+## Digital signature
+
+The Windows executable is **digitally signed using Authenticode**, as with my [Sony Video Recovery](https://sonyvideorecovery.com/) software.
+
+To inspect the signature:
+
+1. Right-click `WolfBoxRecovery.exe`.
+2. Select **Properties**.
+3. Open the **Digital Signatures** tab.
+
+The digital signature allows you to verify the signing publisher and confirm that the executable has not been modified since signing.
 
 ## Build from source
 
-The application is written in native C for Windows. To compile, use **MSYS2 UCRT64** with GCC and `windres`, then run:
+WolfBox Recovery is written in native C for Windows.
+
+To compile, use MSYS2 UCRT64 with GCC and `windres`, then run:
 
 ```bat
 Build-Windows.bat
 ```
 
-For the targeted orphan reconstruction utility:
+For the targeted orphan-reconstruction utility:
 
 ```bat
 Build-Targeted-Windows.bat
 ```
 
-For normal use, download the **compiled Windows package from [Releases](../../releases)** instead of building it yourself.
+For normal recovery work, use the [compiled Windows release](https://github.com/mkinderwater/wolfboxrecovery/releases).
 
-## Limits
+## Limitations
 
-- This supports the WolfBox recording structure examined here; compatibility with other models or firmware is not guaranteed.
-- Overwritten video data cannot be restored.
-- Matching clocks, codec parameters or physical proximity alone do not prove two fragments belong together.
-- Some recordings may be partial, without original filenames, exact dates or audio.
-- A playable MP4 is not proof that the original file was complete or deleted.
+- The software supports the WolfBox recording structures examined during development. Other models and firmware versions may differ.
+- Video that has been physically overwritten cannot be reconstructed.
+- Missing filesystem metadata does not necessarily mean the underlying video is missing.
+- Some recordings may be incomplete or lack original filenames, timestamps or audio.
+- Codec compatibility, matching timestamps and physical proximity do not independently establish that fragments belong to one recording.
+- A playable MP4 does not necessarily represent a complete original recording.
 
 ## Author
 
-I also wrote [Sony Video Recovery](https://sonyvideorecovery.com/). The two projects tackle different proprietary recording formats but grew out of practical video recovery work.
+I'm also the developer of [Sony Video Recovery](https://sonyvideorecovery.com/), which addresses damaged Sony XAVC recordings using a different reconstruction method.
 
-WolfBox Recovery is free, with source available for anyone who wants to use it, inspect it or improve it.
+Both applications came out of practical recovery work and the need to understand how these devices actually store their video.
+
+WolfBox Recovery is free, with source available for anyone interested in using it, examining the code or improving the recovery methods.
 
 ## License
 
-See [LICENSE](LICENSE).
+Released under the [MIT License](LICENSE).
