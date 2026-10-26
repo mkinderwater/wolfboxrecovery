@@ -1,0 +1,1 @@
+The MIT license here is proposed for this release. Verify authorship and rights for included source, the application icon and other assets before publishing. Replace copyright owner line with the actual rights holder. No license covers third-party FFmpeg distribution.
